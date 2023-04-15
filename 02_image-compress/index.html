@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      margin: 0;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* 等高宽度自适应 */
+    .img-by-height {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 100%
+    }
+
+    /* 等宽高度自适应 */
+    .img-by-width {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 100%
+    }
+
+    .container {
+      width: 800px;
+      height: 500px;
+      position: absolute;
+      left: 50%;
+      top: 40%;
+      transform: translate(-50%, -50%);
+      border: 1px solid red;
+    }
+
+    .box {
+      position: relative;
+      height: 450px;
+      background-color: #eee;
+    }
+
+    .img-size {
+      position: absolute;
+      z-index: 10001;
+    }
+
+    .img-box {
+      position: absolute;
+      z-index: 1000;
+      width: 100%;
+      height: 100%;
+      background-color: #aaa;
+    }
+
+    .tip {
+      position: absolute;
+      color: #ccc;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 10%;
+      font-size: 30px;
+    }
+
+    .file {
+      position: absolute;
+      z-index: 999;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+    }
+
+    .flag {
+      width: 300px;
+      height: 300px;
+      position: absolute;
+      left: 0;
+      top: 10%;
+      right: 0;
+      bottom: 0;
+      margin: auto;
+    }
+
+    .controls {
+      line-height: 50px;
+      background-color: #bfa;
+    }
+
+    .img-quality, .img-width, .img-height {
+      border: none;
+      outline: none;
+      width: 50px;
+      height: 50px;
+      box-sizing: border-box;
+      vertical-align: top;
+      font-size: 12px;
+    }
+
+    /* 预览图片 */
+    .preview-box {
+      position: fixed;
+      width: 100vw;
+      height: 100vh;
+      z-index: 99999;
+      background-color: rgba(0, 0, 0, .8);
+    }
+
+    .preview-image {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .img-size-compressed {
+      position: absolute;
+      font-size: 20px;
+      padding: 10px;
+      background-color: rgba(255, 255, 255, .6);
+      border-radius: 10px;
+      z-index: 100000;
+    }
+
+    .exit {
+      width: 100px;
+      height: 100px;
+      position: absolute;
+      right: 20px;
+      top: 30px;
+      z-index: 100000;
+      cursor: pointer;
+    }
+  </style>
+  <script src="./index.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="box">
+      <!-- 展示图片的容器 -->
+      <div class="img-box hidden">
+      </div>
+
+      <!-- 图片大小 -->
+      <div class="img-size"></div>
+      
+      <div class="tip">点击灰色区域上传图片</div>
+      <input class="file" type="file">
+      <img class="flag" src="./images/add.svg" title="点击上传图片">
+    </div>
+    <div class="controls">
+      <span>下载图片质量(0~100)：</span>
+      <input class="img-quality" type="number" value="100">
+      <span>下载图片宽度(单位px)：</span>
+      <input class="img-width" type="number">
+      <span>下载图片高度(单位px)：</span>
+      <input class="img-height" type="number">
+      <button class="preview">预览</button>
+      <button class="download">下载</button>
+    </div>
+  </div>
+
+  <div class="preview-box hidden">
+    <!-- <div class="img-size-compressed"></div> -->
+    <img src="./images/exit.svg" class="exit">
+  </div>
+
+   <script>
+    let imageIsShow = false
+    const imgBoxEl = document.querySelector(".img-box")
+    // 预览按钮
+    const previewBtnEl = document.querySelector(".preview")
+    // 预览盒子
+    const previewBoxEl = document.querySelector(".preview-box")
+    // 下载按钮
+    const downloadBtnEl = document.querySelector(".download")
+    // input
+    const fileInputEl = document.querySelector(".file")
+    const qualityInputEL = document.querySelector(".img-quality")
+    const widthInputEL = document.querySelector(".img-width")
+    const heightInputEL = document.querySelector(".img-height")
+    fileInputEl.addEventListener("change", async (event) => {
+      imgBoxEl.className = "img-box"
+      const imgEl = document.createElement("img")
+      const file = fileInputEl.files[0]
+      const base64 = await imageCompress(file, { quality: 1 })
+      imgEl.src = base64
+      imgEl.className = "img-by-height"
+
+      imgEl.addEventListener("load", () => {
+        imageIsShow = true
+        console.log(imgEl.naturalHeight)
+        console.log(imgEl.naturalWidth)
+        if (imgEl.naturalWidth / imgEl.naturalHeight > 16 / 9) {
+          imgEl.className = "img-by-width"
+        }
+        GOProxy.imageWidth = imgEl.naturalWidth
+        GOProxy.imageHeight = imgEl.naturalHeight
+        GOProxy.imageSize = file.size
+      })
+      imgBoxEl.appendChild(imgEl)
+    })
+
+    // 预览按钮
+    previewBtnEl.addEventListener("click", async () => {
+      if (!imageIsShow) return alert("无图片预览~")
+      previewBoxEl.className = "preview-box"
+      const imgEl = document.createElement("img")
+      const file = fileInputEl.files[0]
+
+      const base64 = await imageCompress(file, { quality: qualityInputEL.value / 100, width: widthInputEL.value, height: heightInputEL.value  })
+      imgEl.src = base64
+      imgEl.className = "preview-image"
+      previewBoxEl.appendChild(imgEl)
+    })
+
+    // 退出预览
+    const exitPreviewEl = document.querySelector(".exit")
+    exitPreviewEl.addEventListener("click", () => {
+      previewBoxEl.className = "preview-box hidden"
+      document.querySelector(".preview-image").remove()
+    })
+
+    // 下载按钮
+    downloadBtnEl.addEventListener("click", async () => {
+      const file = fileInputEl.files[0]
+      console.log(file)
+      const base64 = await imageCompress(file, { quality: qualityInputEL.value / 100, width: widthInputEL.value, height: heightInputEL.value  })
+      const aEl = document.createElement("a")
+      aEl.href = base64
+      aEl.download = file.name
+      document.body.appendChild(aEl)
+      aEl.click()
+      document.body.removeChild(aEl)
+    })
+   </script>
+</body>
+</html>
